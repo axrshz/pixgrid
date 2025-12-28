@@ -15,9 +15,9 @@ func main() {
 	// Define command-line flags
 	inputFile := flag.String("input", "", "Input image file (PNG or JPG)")
 	outputFile := flag.String("output", "output.png", "Output image file")
+	pixelSize := flag.Int("size", 64, "Target width in pixels (height scales proportionally)")
 	
 	flag.Parse()
-	
 
 	// Validate input
 	if *inputFile == "" {
@@ -35,8 +35,12 @@ func main() {
 
 	fmt.Printf("Loaded image: %dx%d pixels\n", img.Bounds().Dx(), img.Bounds().Dy())
 
-	// Save the image (no processing yet, just testing our pipeline)
-	err = saveImage(*outputFile, img)
+	// Step 1: Downscale the image to create the pixelated effect
+	smallImg := downscale(img, *pixelSize)
+	fmt.Printf("Downscaled to: %dx%d pixels\n", smallImg.Bounds().Dx(), smallImg.Bounds().Dy())
+
+	// Save the downscaled image
+	err = saveImage(*outputFile, smallImg)
 	if err != nil {
 		fmt.Printf("Error saving image: %v\n", err)
 		os.Exit(1)
@@ -89,4 +93,39 @@ func saveImage(filename string, img image.Image) error {
 	}
 
 	return nil
+}
+
+// downscale reduces the image to a smaller size
+func downscale(img image.Image, targetWidth int) image.Image {
+	bounds := img.Bounds()
+	origWidth := bounds.Dx()
+	origHeight := bounds.Dy()
+
+	// Calculate target height to maintain aspect ratio
+	targetHeight := (origHeight * targetWidth) / origWidth
+
+	// Create a new image with the target dimensions
+	newImg := image.NewRGBA(image.Rect(0, 0, targetWidth, targetHeight))
+
+	// Calculate the scaling factors
+	scaleX := float64(origWidth) / float64(targetWidth)
+	scaleY := float64(origHeight) / float64(targetHeight)
+
+	// For each pixel in the new (small) image...
+	for y := 0; y < targetHeight; y++ {
+		for x := 0; x < targetWidth; x++ {
+			// Find the corresponding pixel in the original image
+			// We use the CENTER of the source pixel block for better quality
+			srcX := int((float64(x) + 0.5) * scaleX)
+			srcY := int((float64(y) + 0.5) * scaleY)
+
+			// Get the color from the original image
+			color := img.At(srcX, srcY)
+
+			// Set it in the new image
+			newImg.Set(x, y, color)
+		}
+	}
+
+	return newImg
 }
