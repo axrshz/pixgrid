@@ -11,7 +11,7 @@ go build
 ## Usage
 
 ```bash
-./pixelart-converter -input photo.jpg -output art.png
+./pixgrid -input photo.jpg -output art.png
 ```
 
 ## Options
