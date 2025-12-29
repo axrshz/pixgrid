@@ -12,7 +12,7 @@ func main() {
 	outputFile := flag.String("output", "output.png", "Output image file")
 	pixelSize := flag.Int("size", 64, "Target width in pixels (height scales proportionally)")
 	scale := flag.Int("scale", 8, "Upscale factor (how much to enlarge the pixelated image)")
-	colors := flag.Int("colors", 16, "Number of colors in the palette (0 = no quantization)")
+	colors := flag.Int("colors", 32, "Number of colors in the palette (0 = no quantization)")
 	
 	flag.Parse()
 
