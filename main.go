@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"image"
+	"image/color"
 	"image/jpeg"
 	"image/png"
 	"os"
@@ -17,6 +18,7 @@ func main() {
 	outputFile := flag.String("output", "output.png", "Output image file")
 	pixelSize := flag.Int("size", 64, "Target width in pixels (height scales proportionally)")
 	scale := flag.Int("scale", 8, "Upscale factor (how much to enlarge the pixelated image)")
+	colors := flag.Int("colors", 16, "Number of colors in the palette (0 = no quantization)")
 	
 	flag.Parse()
 
@@ -40,7 +42,13 @@ func main() {
 	smallImg := downscale(img, *pixelSize)
 	fmt.Printf("Downscaled to: %dx%d pixels\n", smallImg.Bounds().Dx(), smallImg.Bounds().Dy())
 
-	// Step 2: Upscale back to a viewable size with hard pixel edges
+	// Step 2: Reduce colors if requested
+	if *colors > 0 {
+		smallImg = quantizeColors(smallImg, *colors)
+		fmt.Printf("Reduced to %d colors\n", *colors)
+	}
+
+	// Step 3: Upscale back to a viewable size with hard pixel edges
 	finalImg := upscaleNearestNeighbor(smallImg, *scale)
 	fmt.Printf("Upscaled to: %dx%d pixels\n", finalImg.Bounds().Dx(), finalImg.Bounds().Dy())
 
@@ -133,6 +141,70 @@ func downscale(img image.Image, targetWidth int) image.Image {
 	}
 
 	return newImg
+}
+
+// quantizeColors reduces the number of colors in the image
+func quantizeColors(img image.Image, numColors int) image.Image {
+	bounds := img.Bounds()
+	width := bounds.Dx()
+	height := bounds.Dy()
+
+	// Create a new image for the quantized result
+	newImg := image.NewRGBA(image.Rect(0, 0, width, height))
+
+	// Calculate how many levels per color channel
+	// For example, 16 colors = ~2.5 levels per channel (2^4 = 16 total combinations)
+	// We use cube root to distribute evenly across R, G, B
+	levelsPerChannel := int(float64(numColors) / 3.0)
+	if levelsPerChannel < 2 {
+		levelsPerChannel = 2
+	}
+
+	// Calculate the step size for rounding
+	// 255 is max color value, we divide into equal steps
+	step := 255 / (levelsPerChannel - 1)
+
+	// Process each pixel
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			// Get the original color
+			oldColor := img.At(x, y)
+			r, g, b, a := oldColor.RGBA()
+
+			// Convert from uint32 (0-65535) to uint8 (0-255)
+			r8 := uint8(r >> 8)
+			g8 := uint8(g >> 8)
+			b8 := uint8(b >> 8)
+			a8 := uint8(a >> 8)
+
+			// Round each color channel to the nearest step
+			r8 = quantizeChannel(r8, step)
+			g8 = quantizeChannel(g8, step)
+			b8 = quantizeChannel(b8, step)
+
+			// Create the new color and set it
+			newColor := color.RGBA{R: r8, G: g8, B: b8, A: a8}
+			newImg.Set(x, y, newColor)
+		}
+	}
+
+	return newImg
+}
+
+// quantizeChannel rounds a color value to the nearest step
+func quantizeChannel(value uint8, step int) uint8 {
+	// Divide by step, round, then multiply back
+	// Example: if step=51 and value=120
+	// 120/51 = 2.35 → rounds to 2 → 2*51 = 102
+	level := int(float64(value)/float64(step) + 0.5)
+	result := level * step
+
+	// Make sure we don't exceed 255
+	if result > 255 {
+		result = 255
+	}
+
+	return uint8(result)
 }
 
 // upscaleNearestNeighbor enlarges the image while keeping hard pixel edges
