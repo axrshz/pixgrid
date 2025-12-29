@@ -16,6 +16,7 @@ func main() {
 	inputFile := flag.String("input", "", "Input image file (PNG or JPG)")
 	outputFile := flag.String("output", "output.png", "Output image file")
 	pixelSize := flag.Int("size", 64, "Target width in pixels (height scales proportionally)")
+	scale := flag.Int("scale", 8, "Upscale factor (how much to enlarge the pixelated image)")
 	
 	flag.Parse()
 
@@ -39,8 +40,12 @@ func main() {
 	smallImg := downscale(img, *pixelSize)
 	fmt.Printf("Downscaled to: %dx%d pixels\n", smallImg.Bounds().Dx(), smallImg.Bounds().Dy())
 
-	// Save the downscaled image
-	err = saveImage(*outputFile, smallImg)
+	// Step 2: Upscale back to a viewable size with hard pixel edges
+	finalImg := upscaleNearestNeighbor(smallImg, *scale)
+	fmt.Printf("Upscaled to: %dx%d pixels\n", finalImg.Bounds().Dx(), finalImg.Bounds().Dy())
+
+	// Save the final image
+	err = saveImage(*outputFile, finalImg)
 	if err != nil {
 		fmt.Printf("Error saving image: %v\n", err)
 		os.Exit(1)
@@ -123,6 +128,38 @@ func downscale(img image.Image, targetWidth int) image.Image {
 			color := img.At(srcX, srcY)
 
 			// Set it in the new image
+			newImg.Set(x, y, color)
+		}
+	}
+
+	return newImg
+}
+
+// upscaleNearestNeighbor enlarges the image while keeping hard pixel edges
+func upscaleNearestNeighbor(img image.Image, scaleFactor int) image.Image {
+	bounds := img.Bounds()
+	width := bounds.Dx()
+	height := bounds.Dy()
+
+	// Calculate new dimensions
+	newWidth := width * scaleFactor
+	newHeight := height * scaleFactor
+
+	// Create the larger image
+	newImg := image.NewRGBA(image.Rect(0, 0, newWidth, newHeight))
+
+	// For each pixel in the NEW large image...
+	for y := 0; y < newHeight; y++ {
+		for x := 0; x < newWidth; x++ {
+			// Figure out which pixel from the small image this should be
+			// We divide by scaleFactor to map back to the small image
+			srcX := x / scaleFactor
+			srcY := y / scaleFactor
+
+			// Get the color from the small image
+			color := img.At(srcX, srcY)
+
+			// Set it in the large image
 			newImg.Set(x, y, color)
 		}
 	}
