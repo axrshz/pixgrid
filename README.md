@@ -31,5 +31,5 @@ go build
 ./pixgrid -input photo.jpg -output pixel.png
 
 # Recommended
-go run main.go -input photo.jpg -output pixelart.png -size 64 -scale 8 -colors 32
+./pixgrid -input photo.jpg -output pixelart.png -size 64 -scale 8 -colors 32
 ```
