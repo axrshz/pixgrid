@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"pixie/converter"
+	"pixgrid/converter"
 )
 
 func main() {

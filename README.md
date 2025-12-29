@@ -1,4 +1,4 @@
-# pixie
+# pixgrid
 
 convert png/jpg images to pixel art.
 

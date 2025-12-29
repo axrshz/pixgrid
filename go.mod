@@ -1,3 +1,3 @@
-module pixie
+module pixgrid
 
 go 1.25.1
